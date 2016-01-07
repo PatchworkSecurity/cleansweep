@@ -185,4 +185,8 @@ update()
   fi
 }
 
-update
+if [ "$(get_lsb_value 'DISTRIB_ID')" != 'Ubuntu' ]; then
+  log "Sorry only Ubuntu is currently supported"
+else
+  update
+fi
