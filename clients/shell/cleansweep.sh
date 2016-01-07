@@ -65,7 +65,7 @@ get_uuid()
 {
   # Register the current machine or retrieve machine uuid
   #
-  # The current machine's uuid is stored in a subdirectory of where the 
+  # The current machine's uuid is stored in a subdirectory of where the
   # script executes. A new uuid can be obtained by deleting uuid_file
   #
   # Returns:
@@ -140,10 +140,14 @@ register()
   }
   /:/ {
     if ($1 ~ /"uuid"$/) {
-      # retrieve value between quotes
-      uuid = gensub(/^.*"(.*)".*$/, "\\1", "g", $2);
-      uuid_found = 1
-      exit
+      # there should be 3 fields when we split "UUID", on a double
+      # quote
+      count = split($2, parts, /"/)
+      if (count == 3) {
+        uuid = parts[2]
+        uuid_found = 1
+        exit
+      }
     }
   }
   END {
