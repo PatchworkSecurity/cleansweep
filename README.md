@@ -1,11 +1,14 @@
 # cleansweep
 
+**Need a cleansweep API token?** Sign up for one on our [website](https://patchworksecurity.com)
+
 ![](screenshot.png)
 
-Get notified of outdated packages on your machine.
+Get notifications when packages are outdated. Register your installed packages with us and we will contact you as new security updates are released. No need to follow mailing lists or filtering RSS feeds for relevant packages.
 
 ### Usage
 
+You will need a cleansweep API token to use this service.
 ```sh
 $ ./cleansweep.sh
 ```
@@ -14,6 +17,9 @@ $ ./cleansweep.sh
 
 
 ```sh
+# Register a machine
+API_TOKEN=6afe45ef0b9cd5d99b0a34aff1982aaf ./cleansweep.sh
+
 # Register with machine name `testing`:
 FRIENDLY_NAME=testing ./cleansweep.sh
 
@@ -40,7 +46,7 @@ Enable verbose output to stderr
 
 ### Configuration
 
-The machine uuid is stored in `.patchwork/uuid` by default. You can reset the uuid by deleting this file. This may be required when upgradng the operating system.
+The machine uuid is stored in `.patchwork/uuid` by default. You can reset the uuid by deleting that file. This may be required when upgradng the operating system.
 
 ## License
 
