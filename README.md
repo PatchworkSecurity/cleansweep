@@ -8,7 +8,8 @@ Get notifications when packages are outdated. Register your installed packages w
 
 ### Usage
 
-You will need a cleansweep API token to use this service.
+You will need a cleansweep API token to use this service. The token should either be exported as an environment variable or set for the script.
+
 ```sh
 $ ./cleansweep.sh
 ```
