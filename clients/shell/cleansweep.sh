@@ -1,35 +1,42 @@
 #!/bin/sh
-# This script implements machine registration and updating
+# This script implements machine registration and updates
 set -eu
 IFS=$'\n\t'
+VERBOSE=0
 
 # API_TOKEN must be supplied as an environment variable
-# The other variables have a default value
-#
-# NOTE:
-#   FRIENDLY_NAME defaults to the machine's hostname. This may be
-#   sensitive information in some circumstances.
-API_ENDPOINT=${API_ENDPOINT:-"https://api.patchworksecurity.com/api/v1/machine"}
+# FRIENDLY_NAME defaults to hostname which may be sensitive.
+# Set the FRIENDLY_NAME environment variable to override this.
+API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
 FRIENDLY_NAME=${FRIENDLY_NAME:-$(hostname)}
 CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
+UUID_FILE="${CONFIG_DIR}/uuid"
 
 log()
 {
-  echo "$@" >&2
+  # normal logs go to stdout
+  echo "  * $@"
+}
+
+logv()
+{
+  # verbose logs go to stderr
+  if [ "$VERBOSE" -eq 0 ]; then
+    return
+  fi
+
+  log "$@" >&2
 }
 
 exit_handler()
 {
-  # awk will fail if it doesn't find expected data
-  # and cause the script to exit due to set -e
-  # This handler provides some feedback when that happens
-
   if [ "$?" != 0 ]; then
-    log "There was an error running the script"
+    log "There was an error running the script" >&2
   fi
 }
 
 trap exit_handler EXIT
+
 
 get_lsb_value()
 {
@@ -41,6 +48,9 @@ get_lsb_value()
   #   Value of supplied key or script error
 
   key=$1
+  logv "Searching lsb-release for '$key'"
+
+  # lsb-release is '='-delimited
   awk_script='BEGIN {
     FS="=";
   }
@@ -61,48 +71,22 @@ get_lsb_value()
   awk -v key="$key" "$awk_script" /etc/lsb-release
 }
 
-get_uuid()
-{
-  # Register the current machine or retrieve machine uuid
-  #
-  # The current machine's uuid is stored in a subdirectory of where the
-  # script executes. A new uuid can be obtained by deleting uuid_file
-  #
-  # Returns:
-  #   UUID of the current machine
-
-  uuid_file="${CONFIG_DIR}/uuid"
-  if [ ! -f "$uuid_file" ]; then
-    # Create the directory first otherwise we may register and not be
-    # able to store the uuid
-    if [ ! -d "$CONFIG_DIR" ]; then
-      mkdir "$CONFIG_DIR"
-    fi
-
-    uuid=$(register)
-    log "Registered with uuid $uuid"
-    echo "$uuid" > "$uuid_file"
-  else
-    read -r uuid < "$uuid_file"
-    log "Found previously registered uuid $uuid"
-  fi
-
-  echo "$uuid"
-}
 
 make_request()
 {
   # Perform a curl request against the API server
   #
   # Args:
-  #   url: URL to POST against
+  #   url: URL to curl against
   #   $@: Addtional arguments to pass to curl
   #
   # Returns:
   #   Response body of request
 
   url=$1
+  logv "Performing request to $url"
   shift
+
   curl -s -H "Authorization: $API_TOKEN" \
        -H "Expect: " \
        -H "Content-Type: application/json" \
@@ -112,15 +96,20 @@ make_request()
 
 register()
 {
-  # Register the current machine
+  # Register the current machine if it isn't registered
   #
-  # The relevant machine metadata is retrieved from /etc/lsb-release
-  # and sent to the server. The response is parsed to obtain the
-  # uuid
+  # Machine metadata is retrieved from /etc/lsb-release
+  # and sent to the server. The server responds with a uuid
+  # that the machine should use in future requests.
   #
   # Returns:
   #   Machine UUID or script error
+  if [ -f "$UUID_FILE" ]; then
+    logv "Machine is already registered"
+    return
+  fi
 
+  log "Registering new machine"
   os=$(get_lsb_value "DISTRIB_ID")
   version=$(get_lsb_value "DISTRIB_RELEASE")
   json=$(printf '{
@@ -128,6 +117,8 @@ register()
     "os": "%s",
     "version": "%s"
   }' "$FRIENDLY_NAME" "$os" "$version")
+
+  logv "Machine $FRIENDLY_NAME ($os $version)"
 
   # We're expecting relatively well-formed JSON to be returned.
   # A JSON "key": "value" is considered a single record and the
@@ -140,8 +131,8 @@ register()
   }
   /:/ {
     if ($1 ~ /"uuid"$/) {
-      # there should be 3 fields when we split "UUID", on a double
-      # quote
+      # split will return the string before, in and after the
+      # double quotes
       count = split($2, parts, /"/)
       if (count == 3) {
         uuid = parts[2]
@@ -157,36 +148,67 @@ register()
     print uuid
   }'
 
-  # POSIX doesn't support set -o pipefail, but the awk script will
-  # error if make_request fails.
-  make_request "$API_ENDPOINT" --data "$json" | awk "$awk_script" -
+  # POSIX doesn't support set -o pipefail
+  # awk will fail if make_request doesn't contain a uuid
+  uuid=$(make_request "$API_ENDPOINT" --data "$json" | awk "$awk_script" -)
+
+  logv "Saving uuid $uuid"
+  echo "$uuid" > "$UUID_FILE"
 }
+
 
 update()
 {
-  # Updates the package set for the current machine
+  # Updates the package set for the machine
   #
   # Package data is retrieved from dpkg-query and uploaded to the
-  # service. This replaces the previous list of packages for this
-  # machine.
+  # service. This replaces the machine's previous package list
 
-  uuid=$(get_uuid)
+  log "Updating machine state"
+  read -r uuid < "$UUID_FILE"
+
+  # output JSON like string
   pkgs=$(dpkg-query -W -f '{"name": "${Package}", "version": "${Version}"},\n')
-  # remove trailing comma
-  pkgs=${pkgs%,}
+  # remove trailing comma and turn into array
+  pkgs="[ ${pkgs%,} ]"
+  logv "Uploading packages:\n$pkgs"
 
-  status=$(make_request "${API_ENDPOINT}/${uuid}" --data "[ $pkgs ]" \
+  status=$(make_request "${API_ENDPOINT}/${uuid}" --data "$pkgs" \
                         -o /dev/null -w '%{http_code}')
 
+  logv "Received HTTP $status"
   if [ "$status" -ne 200 ]; then
-    log "Update received $status instead of 200"
+    log "Failed to update packages:  Received $status instead of 200"
   else
     log "Successfully uploaded package data"
   fi
 }
 
-if [ "$(get_lsb_value 'DISTRIB_ID')" != 'Ubuntu' ]; then
-  log "Sorry only Ubuntu is currently supported"
-else
-  update
+
+if [ $# -gt 0 ]; then
+  if [ "$1" = "-v" ]; then
+    VERBOSE=1
+    logv "Verbose logging enabled"
+  fi
 fi
+
+logv "API_TOKEN: $API_TOKEN"
+logv "API_ENDPOINT: $API_ENDPOINT"
+logv "FRIENDLY_NAME: $FRIENDLY_NAME"
+logv "CONFIG_DIR: $CONFIG_DIR"
+
+distro="$(get_lsb_value 'DISTRIB_ID')"
+if [ "$distro" != 'Ubuntu' ]; then
+  log "Sorry '$distro' isn't supported at this time"
+  exit
+fi
+
+# Check that $CONFIG_DIR exists, otherwise saving
+# the uuid may fail
+if [ ! -d "$CONFIG_DIR" ]; then
+  logv "Creating config directory"
+  mkdir "$CONFIG_DIR"
+fi
+
+register
+update
