@@ -8,18 +8,31 @@ Get notifications when packages are outdated. Register your installed packages w
 
 ### Usage
 
-You will need a cleansweep API token to use this service. The token should either be exported as an environment variable or set for the script.
+This server requires a cleansweep API token.
+
+_**Note:**_ Replace **your_token** with the token you received from sign up
+
+Set your **API_TOKEN** with either
 
 ```sh
+$ export API_TOKEN=your_token
 $ ./cleansweep.sh
 ```
+
+or
+
+
+```sh
+$ API_TOKEN=your_token ./cleansweep.sh
+```
+
 
 ### Examples
 
 
 ```sh
 # Register a machine
-API_TOKEN=6afe45ef0b9cd5d99b0a34aff1982aaf ./cleansweep.sh
+./cleansweep.sh
 
 # Register with machine name `testing`:
 FRIENDLY_NAME=testing ./cleansweep.sh
