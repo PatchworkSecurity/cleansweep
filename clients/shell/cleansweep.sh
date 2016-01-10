@@ -7,6 +7,7 @@ VERBOSE=0
 # API_TOKEN must be supplied as an environment variable
 # FRIENDLY_NAME defaults to hostname which may be sensitive.
 # Set the FRIENDLY_NAME environment variable to override this.
+API_TOKEN=${API_TOKEN:-}
 API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
 FRIENDLY_NAME=${FRIENDLY_NAME:-$(hostname)}
 CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
@@ -31,7 +32,7 @@ logv()
 exit_handler()
 {
   if [ "$?" != 0 ]; then
-    log "There was an error running the script" >&2
+    log "There was an error running the script"
   fi
 }
 
@@ -185,10 +186,19 @@ update()
 }
 
 
+if [ -z "$API_TOKEN" ]; then
+  log "You didn't set an API_TOKEN"
+  log "Please set one before running the script with\n\n" \
+      "\texport API_TOKEN=your_token\n"
+  log "Replace your_token with the token you received during sign up"
+  log "You can request a token at https://patchworksecurity.com"
+  exit 0
+fi
+
 if [ $# -gt 0 ]; then
   if [ "$1" = "-v" ]; then
     VERBOSE=1
-    logv "Verbose logging enabled"
+    log "Verbose logging enabled"
   fi
 fi
 
