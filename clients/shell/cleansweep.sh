@@ -12,6 +12,7 @@ API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
 FRIENDLY_NAME=${FRIENDLY_NAME:-$(hostname)}
 CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
 UUID_FILE="${CONFIG_DIR}/uuid"
+UUID=${CLEANSWEEP_UUID:-}
 
 log()
 {
@@ -105,8 +106,18 @@ register()
   #
   # Returns:
   #   Machine UUID or script error
+
+  # Check that $CONFIG_DIR exists, otherwise saving
+  # the uuid may fail
+  if [ ! -d "$CONFIG_DIR" ]; then
+    logv "Creating config directory"
+    mkdir "$CONFIG_DIR"
+  fi
+
   if [ -f "$UUID_FILE" ]; then
     logv "Machine is already registered"
+    read -r uuid < "$UUID_FILE"
+    echo "$uuid"
     return
   fi
 
@@ -155,6 +166,7 @@ register()
 
   logv "Saving uuid $uuid"
   echo "$uuid" > "$UUID_FILE"
+  echo "$uuid"
 }
 
 
@@ -166,7 +178,6 @@ update()
   # service. This replaces the machine's previous package list
 
   log "Updating machine state"
-  read -r uuid < "$UUID_FILE"
 
   # output JSON like string
   pkgs=$(dpkg-query -W -f '{"name": "${Package}", "version": "${Version}"},\n')
@@ -174,7 +185,7 @@ update()
   pkgs="[ ${pkgs%,} ]"
   logv "Uploading packages:\n$pkgs"
 
-  status=$(make_request "${API_ENDPOINT}/${uuid}" --data "$pkgs" \
+  status=$(make_request "${API_ENDPOINT}/${UUID}" --data "$pkgs" \
                         -o /dev/null -w '%{http_code}')
 
   logv "Received HTTP $status"
@@ -206,6 +217,7 @@ logv "API_TOKEN: $API_TOKEN"
 logv "API_ENDPOINT: $API_ENDPOINT"
 logv "FRIENDLY_NAME: $FRIENDLY_NAME"
 logv "CONFIG_DIR: $CONFIG_DIR"
+logv "UUID: ${CLEANSWEEP_UUID:-Not supplied}"
 
 distro="$(get_lsb_value 'DISTRIB_ID')"
 if [ "$distro" != 'Ubuntu' ]; then
@@ -213,12 +225,9 @@ if [ "$distro" != 'Ubuntu' ]; then
   exit
 fi
 
-# Check that $CONFIG_DIR exists, otherwise saving
-# the uuid may fail
-if [ ! -d "$CONFIG_DIR" ]; then
-  logv "Creating config directory"
-  mkdir "$CONFIG_DIR"
+
+if [ -z "$UUID" ]; then
+  UUID="$(register)"
 fi
 
-register
 update
