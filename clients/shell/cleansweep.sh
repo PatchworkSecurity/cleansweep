@@ -111,17 +111,6 @@ register()
 
   # Check that $CONFIG_DIR exists, otherwise saving
   # the uuid may fail
-  if [ ! -d "$CONFIG_DIR" ]; then
-    logv "Creating config directory"
-    mkdir "$CONFIG_DIR"
-  fi
-
-  if [ -f "$UUID_FILE" ]; then
-    logv "Machine is already registered"
-    read -r uuid < "$UUID_FILE"
-    echo "$uuid"
-    return
-  fi
 
   os=$(get_lsb_value "DISTRIB_ID")
   version=$(get_lsb_value "DISTRIB_RELEASE")
@@ -234,8 +223,18 @@ logv "CONFIG_DIR: $CONFIG_DIR"
 logv "UUID: ${CLEANSWEEP_UUID:-Not supplied}"
 
 if [ -z "$UUID" ]; then
-  log "Registering new machine"
-  UUID="$(register)"
+  if [ ! -d "$CONFIG_DIR" ]; then
+    logv "Creating config directory"
+    mkdir "$CONFIG_DIR"
+  fi
+
+  if [ -f "$UUID_FILE" ]; then
+    logv "Machine is already registered"
+    read -r UUID < "$UUID_FILE"
+  else
+    log "Registering new machine"
+    UUID="$(register)"
+  fi
 fi
 
 update
