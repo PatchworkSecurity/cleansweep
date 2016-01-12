@@ -123,7 +123,6 @@ register()
     return
   fi
 
-  log "Registering new machine"
   os=$(get_lsb_value "DISTRIB_ID")
   version=$(get_lsb_value "DISTRIB_RELEASE")
   json=$(printf '{
@@ -235,8 +234,8 @@ logv "CONFIG_DIR: $CONFIG_DIR"
 logv "UUID: ${CLEANSWEEP_UUID:-Not supplied}"
 
 if [ -z "$UUID" ]; then
+  log "Registering new machine"
   UUID="$(register)"
 fi
-
 
 update
