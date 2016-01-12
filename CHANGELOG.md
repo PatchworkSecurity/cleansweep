@@ -3,6 +3,10 @@ All notable changes to this projecft will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.2] - 2016-01-12
+### Fixed
+- Fixed duplicate registration message
+
 ## [1.1.1] - 2016-01-12
 ### Fixed
 - Fixed initial registration error
