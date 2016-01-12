@@ -3,6 +3,7 @@
 set -eu
 IFS=$'\n\t'
 VERBOSE=0
+WEBSITE="https://patchworksecurity.com"
 
 # API_TOKEN must be supplied as an environment variable
 # FRIENDLY_NAME defaults to hostname which may be sensitive.
@@ -13,6 +14,7 @@ FRIENDLY_NAME=${FRIENDLY_NAME:-$(hostname)}
 CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
 UUID_FILE="${CONFIG_DIR}/uuid"
 UUID=${CLEANSWEEP_UUID:-}
+LSB_RELEASE="/etc/lsb-release"
 
 log()
 {
@@ -70,7 +72,7 @@ get_lsb_value()
     print value
   }'
 
-  awk -v key="$key" "$awk_script" /etc/lsb-release
+  awk -v key="$key" "$awk_script" "$LSB_RELEASE"
 }
 
 
@@ -202,9 +204,22 @@ if [ -z "$API_TOKEN" ]; then
   log "Please set one before running the script with\n\n" \
       "\texport API_TOKEN=your_token\n"
   log "Replace your_token with the token you received during sign up"
-  log "You can request a token at https://patchworksecurity.com"
+  log "You can request a token at $WEBSITE"
   exit 0
 fi
+
+if [ ! -f "$LSB_RELEASE" ]; then
+  log "$LSB_RELEASE doesn't exist"
+  log "Check $WEBSITE for supported operating systems"
+  exit
+fi
+
+distro="$(get_lsb_value 'DISTRIB_ID')"
+if [ "$distro" != 'Ubuntu' ]; then
+  log "Sorry '$distro' isn't supported at this time"
+  exit
+fi
+
 
 if [ $# -gt 0 ]; then
   if [ "$1" = "-v" ]; then
@@ -219,15 +234,9 @@ logv "FRIENDLY_NAME: $FRIENDLY_NAME"
 logv "CONFIG_DIR: $CONFIG_DIR"
 logv "UUID: ${CLEANSWEEP_UUID:-Not supplied}"
 
-distro="$(get_lsb_value 'DISTRIB_ID')"
-if [ "$distro" != 'Ubuntu' ]; then
-  log "Sorry '$distro' isn't supported at this time"
-  exit
-fi
-
-
 if [ -z "$UUID" ]; then
   UUID="$(register)"
 fi
+
 
 update
