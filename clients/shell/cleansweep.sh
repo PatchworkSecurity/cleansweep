@@ -3,6 +3,7 @@
 set -eu
 IFS=$'\n\t'
 VERBOSE=0
+WEBSITE="https://patchworksecurity.com"
 
 # API_TOKEN must be supplied as an environment variable
 # FRIENDLY_NAME defaults to hostname which may be sensitive.
@@ -12,6 +13,8 @@ API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
 FRIENDLY_NAME=${FRIENDLY_NAME:-$(hostname)}
 CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
 UUID_FILE="${CONFIG_DIR}/uuid"
+UUID=${CLEANSWEEP_UUID:-}
+LSB_RELEASE="/etc/lsb-release"
 
 log()
 {
@@ -69,7 +72,7 @@ get_lsb_value()
     print value
   }'
 
-  awk -v key="$key" "$awk_script" /etc/lsb-release
+  awk -v key="$key" "$awk_script" "$LSB_RELEASE"
 }
 
 
@@ -105,8 +108,18 @@ register()
   #
   # Returns:
   #   Machine UUID or script error
+
+  # Check that $CONFIG_DIR exists, otherwise saving
+  # the uuid may fail
+  if [ ! -d "$CONFIG_DIR" ]; then
+    logv "Creating config directory"
+    mkdir "$CONFIG_DIR"
+  fi
+
   if [ -f "$UUID_FILE" ]; then
     logv "Machine is already registered"
+    read -r uuid < "$UUID_FILE"
+    echo "$uuid"
     return
   fi
 
@@ -155,6 +168,7 @@ register()
 
   logv "Saving uuid $uuid"
   echo "$uuid" > "$UUID_FILE"
+  echo "$uuid"
 }
 
 
@@ -166,7 +180,6 @@ update()
   # service. This replaces the machine's previous package list
 
   log "Updating machine state"
-  read -r uuid < "$UUID_FILE"
 
   # output JSON like string
   pkgs=$(dpkg-query -W -f '{"name": "${Package}", "version": "${Version}"},\n')
@@ -174,7 +187,7 @@ update()
   pkgs="[ ${pkgs%,} ]"
   logv "Uploading packages:\n$pkgs"
 
-  status=$(make_request "${API_ENDPOINT}/${uuid}" --data "$pkgs" \
+  status=$(make_request "${API_ENDPOINT}/${UUID}" --data "$pkgs" \
                         -o /dev/null -w '%{http_code}')
 
   logv "Received HTTP $status"
@@ -191,9 +204,22 @@ if [ -z "$API_TOKEN" ]; then
   log "Please set one before running the script with\n\n" \
       "\texport API_TOKEN=your_token\n"
   log "Replace your_token with the token you received during sign up"
-  log "You can request a token at https://patchworksecurity.com"
+  log "You can request a token at $WEBSITE"
   exit 0
 fi
+
+if [ ! -f "$LSB_RELEASE" ]; then
+  log "$LSB_RELEASE doesn't exist"
+  log "Check $WEBSITE for supported operating systems"
+  exit
+fi
+
+distro="$(get_lsb_value 'DISTRIB_ID')"
+if [ "$distro" != 'Ubuntu' ]; then
+  log "Sorry '$distro' isn't supported at this time"
+  exit
+fi
+
 
 if [ $# -gt 0 ]; then
   if [ "$1" = "-v" ]; then
@@ -206,19 +232,11 @@ logv "API_TOKEN: $API_TOKEN"
 logv "API_ENDPOINT: $API_ENDPOINT"
 logv "FRIENDLY_NAME: $FRIENDLY_NAME"
 logv "CONFIG_DIR: $CONFIG_DIR"
+logv "UUID: ${CLEANSWEEP_UUID:-Not supplied}"
 
-distro="$(get_lsb_value 'DISTRIB_ID')"
-if [ "$distro" != 'Ubuntu' ]; then
-  log "Sorry '$distro' isn't supported at this time"
-  exit
+if [ -z "$UUID" ]; then
+  UUID="$(register)"
 fi
 
-# Check that $CONFIG_DIR exists, otherwise saving
-# the uuid may fail
-if [ ! -d "$CONFIG_DIR" ]; then
-  logv "Creating config directory"
-  mkdir "$CONFIG_DIR"
-fi
 
-register
 update
