@@ -1,7 +1,11 @@
 # Changelog
-All notable changes to this projecft will be documented in this file.
+All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [2.0.0] - 2016-01-13
+### Changed
+- API_TOKEN is now PATCHWORK_API_KEY
 
 ## [1.1.2] - 2016-01-12
 ### Fixed
