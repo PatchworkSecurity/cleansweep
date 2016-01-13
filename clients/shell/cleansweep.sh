@@ -5,10 +5,10 @@ IFS=$'\n\t'
 VERBOSE=0
 WEBSITE="https://patchworksecurity.com"
 
-# API_TOKEN must be supplied as an environment variable
+# PATCHWORK_API_KEY must be supplied as an environment variable
 # FRIENDLY_NAME defaults to hostname which may be sensitive.
 # Set the FRIENDLY_NAME environment variable to override this.
-API_TOKEN=${API_TOKEN:-}
+PATCHWORK_API_KEY=${PATCHWORK_API_KEY:-}
 API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
 FRIENDLY_NAME=${FRIENDLY_NAME:-$(hostname)}
 CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
@@ -91,7 +91,7 @@ make_request()
   logv "Performing request to $url"
   shift
 
-  curl -s -H "Authorization: $API_TOKEN" \
+  curl -s -H "Authorization: $PATCHWORK_API_KEY" \
        -H "Expect: " \
        -H "Content-Type: application/json" \
        "$@" "$url"
@@ -108,9 +108,6 @@ register()
   #
   # Returns:
   #   Machine UUID or script error
-
-  # Check that $CONFIG_DIR exists, otherwise saving
-  # the uuid may fail
 
   os=$(get_lsb_value "DISTRIB_ID")
   version=$(get_lsb_value "DISTRIB_RELEASE")
@@ -187,12 +184,12 @@ update()
 }
 
 
-if [ -z "$API_TOKEN" ]; then
-  log "You didn't set an API_TOKEN"
-  log "Please set one before running the script with\n\n" \
-      "\texport API_TOKEN=your_token\n"
-  log "Replace your_token with the token you received during sign up"
-  log "You can request a token at $WEBSITE"
+if [ -z "$PATCHWORK_API_KEY" ]; then
+  log "You didn't set PATCHWORK_API_KEY"
+  log "Set this before running the script with\n\n" \
+      "\texport PATCHWORK_API_KEY=your_api_key\n"
+  log "Replace your_api_key with the key you received during sign up"
+  log "You can request a key at $WEBSITE"
   exit 0
 fi
 
@@ -216,13 +213,16 @@ if [ $# -gt 0 ]; then
   fi
 fi
 
-logv "API_TOKEN: $API_TOKEN"
+logv "PATCHWORK_API_KEY: $PATCHWORK_API_KEY"
 logv "API_ENDPOINT: $API_ENDPOINT"
 logv "FRIENDLY_NAME: $FRIENDLY_NAME"
 logv "CONFIG_DIR: $CONFIG_DIR"
 logv "UUID: ${CLEANSWEEP_UUID:-Not supplied}"
 
 if [ -z "$UUID" ]; then
+  # Check that $CONFIG_DIR exists, otherwise saving
+  # the uuid may fail
+
   if [ ! -d "$CONFIG_DIR" ]; then
     logv "Creating config directory"
     mkdir "$CONFIG_DIR"
