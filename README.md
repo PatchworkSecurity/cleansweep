@@ -1,6 +1,6 @@
 # cleansweep
 
-**Need a cleansweep API token?** Sign up for one on our [website](https://patchworksecurity.com)
+**Need an API key?** Sign up for one on our [website](https://patchworksecurity.com)
 
 ![](screenshot.png)
 
@@ -8,14 +8,14 @@ Get notifications when packages are outdated. Register your installed packages w
 
 ### Usage
 
-This server requires a cleansweep API token.
+This server requires a Patchwork API key.
 
-_**Note:**_ Replace **your_token** with the token you received from sign up
+_**Note:**_ Replace **your_api_key** with the key you received from sign up
 
-Set your **API_TOKEN** with either
+Set your **PATCHWORK_API_KEY** with either
 
 ```sh
-$ export API_TOKEN=your_token
+$ export PATCHWORK_API_KEY=your_api_key
 $ ./cleansweep.sh
 ```
 
@@ -23,7 +23,7 @@ or
 
 
 ```sh
-$ API_TOKEN=your_token ./cleansweep.sh
+$ PATCHWORK_API_KEY=your_api_key ./cleansweep.sh
 ```
 
 
@@ -56,7 +56,7 @@ Enable verbose output to stderr
 
 ### Environment variables
 
-- `API_TOKEN`: The API token to use
+- `PATCHWORK_API_KEY`: The API key to use
 - `FRIENDLY_NAME`: Specify a custom name for this machine, `hostname` by default
 - `CONFIG_DIR`: Specify an alternative location to store metadata, `.patchwork` by default
 - `CLEANSWEEP_UUID`: Specify a UUID to use. The UUID must have been obtained through a previous register call.
