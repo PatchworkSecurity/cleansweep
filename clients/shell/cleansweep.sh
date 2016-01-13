@@ -184,57 +184,66 @@ update()
 }
 
 
-if [ -z "$PATCHWORK_API_KEY" ]; then
-  log "You didn't set PATCHWORK_API_KEY"
-  log "Set this before running the script with\n\n" \
-      "\texport PATCHWORK_API_KEY=your_api_key\n"
-  log "Replace your_api_key with the key you received during sign up"
-  log "You can request a key at $WEBSITE"
-  exit 0
-fi
+run_script()
+{
+  # Runs the script
+  # We wrap the script in this function because a network truncation may
+  # result in undefined behavior
 
-if [ ! -f "$LSB_RELEASE" ]; then
-  log "$LSB_RELEASE doesn't exist"
-  log "Check $WEBSITE for supported operating systems"
-  exit
-fi
-
-distro="$(get_lsb_value 'DISTRIB_ID')"
-if [ "$distro" != 'Ubuntu' ]; then
-  log "Sorry '$distro' isn't supported at this time"
-  exit
-fi
-
-
-if [ $# -gt 0 ]; then
-  if [ "$1" = "-v" ]; then
-    VERBOSE=1
-    log "Verbose logging enabled"
-  fi
-fi
-
-logv "PATCHWORK_API_KEY: $PATCHWORK_API_KEY"
-logv "API_ENDPOINT: $API_ENDPOINT"
-logv "FRIENDLY_NAME: $FRIENDLY_NAME"
-logv "CONFIG_DIR: $CONFIG_DIR"
-logv "UUID: ${CLEANSWEEP_UUID:-Not supplied}"
-
-if [ -z "$UUID" ]; then
-  # Check that $CONFIG_DIR exists, otherwise saving
-  # the uuid may fail
-
-  if [ ! -d "$CONFIG_DIR" ]; then
-    logv "Creating config directory"
-    mkdir "$CONFIG_DIR"
+  if [ -z "$PATCHWORK_API_KEY" ]; then
+    log "You didn't set PATCHWORK_API_KEY"
+    log "Set this before running the script with\n\n" \
+        "\texport PATCHWORK_API_KEY=your_api_key\n"
+    log "Replace your_api_key with the key you received during sign up"
+    log "You can request a key at $WEBSITE"
+    exit
   fi
 
-  if [ -f "$UUID_FILE" ]; then
-    logv "Machine is already registered"
-    read -r UUID < "$UUID_FILE"
-  else
-    log "Registering new machine"
-    UUID="$(register)"
+  if [ ! -f "$LSB_RELEASE" ]; then
+    log "$LSB_RELEASE doesn't exist"
+    log "Check $WEBSITE for supported operating systems"
+    exit
   fi
-fi
 
-update
+  distro="$(get_lsb_value 'DISTRIB_ID')"
+  if [ "$distro" != 'Ubuntu' ]; then
+    log "Sorry '$distro' isn't supported at this time"
+    exit
+  fi
+
+  if [ -z "$UUID" ]; then
+    # Check that $CONFIG_DIR exists, otherwise saving
+    # the uuid may fail
+
+    if [ ! -d "$CONFIG_DIR" ]; then
+      logv "Creating config directory"
+      mkdir "$CONFIG_DIR"
+    fi
+
+    if [ -f "$UUID_FILE" ]; then
+      logv "Machine is already registered"
+      read -r UUID < "$UUID_FILE"
+    else
+      log "Registering new machine"
+      UUID="$(register)"
+    fi
+  fi
+
+  if [ $# -gt 0 ]; then
+    if [ "$1" = "-v" ]; then
+      VERBOSE=1
+      log "Verbose logging enabled"
+    fi
+  fi
+
+  logv "PATCHWORK_API_KEY: $PATCHWORK_API_KEY"
+  logv "API_ENDPOINT: $API_ENDPOINT"
+  logv "FRIENDLY_NAME: $FRIENDLY_NAME"
+  logv "CONFIG_DIR: $CONFIG_DIR"
+  logv "UUID: ${CLEANSWEEP_UUID:-Not supplied}"
+
+  update
+}
+
+
+run_script "$@"
