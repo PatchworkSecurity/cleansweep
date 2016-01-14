@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.1] - 2016-01-13
+### Fixed
+- curl data is no longer passed as command line argument. #8 (@TheHippo)
+- Wrapped script in function. #7 (@DoubleMalt, @SchizoDuckie)
+
 ## [2.0.0] - 2016-01-13
 ### Changed
 - API_TOKEN is now PATCHWORK_API_KEY
