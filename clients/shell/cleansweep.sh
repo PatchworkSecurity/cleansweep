@@ -82,6 +82,7 @@ make_request()
   #
   # Args:
   #   url: URL to curl against
+  #   data: POST data
   #   $@: Addtional arguments to pass to curl
   #
   # Returns:
@@ -89,12 +90,15 @@ make_request()
 
   url=$1
   logv "Performing request to $url"
-  shift
+  data=$2
+  shift 2
 
   curl -s -H "Authorization: $PATCHWORK_API_KEY" \
        -H "Expect: " \
        -H "Content-Type: application/json" \
-       "$@" "$url"
+       -d @- "$@" "$url" <<CURL_DATA
+$data
+CURL_DATA
 }
 
 
@@ -149,7 +153,7 @@ register()
 
   # POSIX doesn't support set -o pipefail
   # awk will fail if make_request doesn't contain a uuid
-  uuid=$(make_request "$API_ENDPOINT" --data "$json" | awk "$awk_script" -)
+  uuid=$(make_request "$API_ENDPOINT" "$json" | awk "$awk_script" -)
 
   logv "Saving uuid $uuid"
   echo "$uuid" > "$UUID_FILE"
@@ -172,7 +176,7 @@ update()
   pkgs="[ ${pkgs%,} ]"
   logv "Uploading packages:\n$pkgs"
 
-  status=$(make_request "${API_ENDPOINT}/${UUID}" --data "$pkgs" \
+  status=$(make_request "${API_ENDPOINT}/${UUID}" "$pkgs" \
                         -o /dev/null -w '%{http_code}')
 
   logv "Received HTTP $status"
