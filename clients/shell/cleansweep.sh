@@ -6,14 +6,12 @@ VERBOSE=0
 WEBSITE="https://patchworksecurity.com"
 
 # PATCHWORK_API_KEY must be supplied as an environment variable
-# FRIENDLY_NAME defaults to hostname which may be sensitive.
-# Set the FRIENDLY_NAME environment variable to override this.
 PATCHWORK_API_KEY=${PATCHWORK_API_KEY:-}
 API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
-FRIENDLY_NAME=${FRIENDLY_NAME:-$(hostname)}
+FRIENDLY_NAME=${FRIENDLY_NAME:-"testing"}
 CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
 UUID_FILE="${CONFIG_DIR}/uuid"
-UUID=${CLEANSWEEP_UUID:-}
+UUID=${PATCHWORK_UUID:-}
 LSB_RELEASE="/etc/lsb-release"
 
 log()
@@ -198,7 +196,7 @@ run_script()
     log "You didn't set PATCHWORK_API_KEY"
     log "Set this before running the script with\n\n" \
         "\texport PATCHWORK_API_KEY=your_api_key\n"
-    log "Replace your_api_key with the key you received during sign up"
+    log "Replace 'your_api_key' with the key you received during sign up"
     log "You can request a key at $WEBSITE"
     exit
   fi
@@ -216,20 +214,28 @@ run_script()
   fi
 
   if [ -z "$UUID" ]; then
-    # Check that $CONFIG_DIR exists, otherwise saving
-    # the uuid may fail
+    # try reading from old variable name
+    UUID=${CLEANSWEEP_UUID:-}
 
-    if [ ! -d "$CONFIG_DIR" ]; then
-      logv "Creating config directory"
-      mkdir "$CONFIG_DIR"
-    fi
+    if [ -z "$UUID" ]; then
+      # Check that $CONFIG_DIR exists, otherwise saving
+      # the uuid may fail
+      if [ ! -d "$CONFIG_DIR" ]; then
+        logv "Creating config directory"
+        mkdir "$CONFIG_DIR"
+      fi
 
-    if [ -f "$UUID_FILE" ]; then
-      logv "Machine is already registered"
-      read -r UUID < "$UUID_FILE"
+      if [ -f "$UUID_FILE" ]; then
+        logv "Machine is already registered"
+        read -r UUID < "$UUID_FILE"
+      else
+        log "Registering new machine"
+        UUID="$(register)"
+      fi
     else
-      log "Registering new machine"
-      UUID="$(register)"
+      log "CLEANSWEEP_UUID will be deprecated in version 3.0.0"
+      log "Please update your code to use\n\n" \
+          "\tPATCHWORK_UUID\n"
     fi
   fi
 
@@ -244,7 +250,7 @@ run_script()
   logv "API_ENDPOINT: $API_ENDPOINT"
   logv "FRIENDLY_NAME: $FRIENDLY_NAME"
   logv "CONFIG_DIR: $CONFIG_DIR"
-  logv "UUID: ${CLEANSWEEP_UUID:-Not supplied}"
+  logv "UUID: $UUID"
 
   update
 }

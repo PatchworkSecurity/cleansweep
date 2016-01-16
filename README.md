@@ -41,7 +41,7 @@ FRIENDLY_NAME=testing ./cleansweep.sh
 CONFIG_DIR=.config ./cleansweep.sh
 
 # Specify a UUID to use
-CLEANSWEEP_UUID=95ff6009-3782-4d13-9968-4f7e8778ab93 ./cleansweep.sh
+PATCHWORK_UUID=95ff6009-3782-4d13-9968-4f7e8778ab93 ./cleansweep.sh
 
 # Enable verbose output
 # This outputs all your installed packages to the console
@@ -57,16 +57,17 @@ Enable verbose output to stderr
 ### Environment variables
 
 - `PATCHWORK_API_KEY`: The API key to use
-- `FRIENDLY_NAME`: Specify a custom name for this machine, `hostname` by default
+- `FRIENDLY_NAME`: Specify a custom name for this machine, `testing` by default
 - `CONFIG_DIR`: Specify an alternative location to store metadata, `.patchwork` by default
-- `CLEANSWEEP_UUID`: Specify a UUID to use. The UUID must have been obtained through a previous register call.
+- `PATCHWORK_UUID`: Specify a UUID to use. The UUID must have been obtained through a previous register call.
+- `CLEANSWEEP_UUID`: Same as `PATCHWORK_UUID`. However this variable will be deprecated in a future version.
 
 
 ### Configuration
 
 The machine uuid is stored in `.patchwork/uuid` by default. You can reset the uuid by deleting that file. This may be required when upgradng the operating system.
 
-You can specify a UUID by setting `CLEANSWEEP_UUID`. UUIDs are specific to Linux versions. You will need a new UUID if you upgrade your version of Linux, e.g. Ubuntu 12.04 to Ubuntu 14.04
+You can specify a UUID by setting `PATCHWORK_UUID`. UUIDs are specific to Linux versions. You will need a new UUID if you upgrade your version of Linux, e.g. Ubuntu 12.04 to Ubuntu 14.04
 
 ## License
 
