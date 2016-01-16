@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.1.0] - 2016-01-15
+### Changed
+- Default FRIENDLY_NAME is now the string `testing`
+### Deprecated
+- CLEANSWEEP_UUID is now PATCHWORK_UUID.
+
 ## [2.0.1] - 2016-01-13
 ### Fixed
 - curl data is no longer passed as command line argument. #8 (@TheHippo)
