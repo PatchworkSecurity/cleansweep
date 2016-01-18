@@ -169,7 +169,15 @@ update()
   log "Updating machine state"
 
   # output JSON like string
-  pkgs=$(dpkg-query -W -f '{"name": "${Package}", "version": "${Version}"},\n')
+  awk_script='BEGIN {
+    RS="\n";
+    FS="\t";
+  }
+  /^install ok installed/ {
+    # only print if package is installed
+    printf "{\"name\": \"%s\", \"version\": \"%s\"},\n", $2, $3;
+  }'
+  pkgs=$(dpkg-query -W -f '${Status}\t${Package}\t${Version}\n' | awk "$awk_script" -)
   # remove trailing comma and turn into array
   pkgs="[ ${pkgs%,} ]"
   logv "Uploading packages:\n$pkgs"
