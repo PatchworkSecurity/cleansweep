@@ -57,7 +57,7 @@ Enable verbose output to stderr
 ### Environment variables
 
 - `PATCHWORK_API_KEY`: The API key to use
-- `FRIENDLY_NAME`: Specify a custom name for this machine, `testing` by default
+- `FRIENDLY_NAME`: Specify a custom name for this machine, `hostname` by default
 - `CONFIG_DIR`: Specify an alternative location to store metadata, `.patchwork` by default
 - `PATCHWORK_UUID`: Specify a UUID to use. The UUID must have been obtained through a previous register call.
 - `CLEANSWEEP_UUID`: Same as `PATCHWORK_UUID`. However this variable will be deprecated in a future version.
