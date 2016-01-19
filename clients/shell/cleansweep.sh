@@ -101,27 +101,17 @@ $data
 CURL_DATA
 }
 
-
 register()
 {
-  # Register the current machine if it isn't registered
-  #
-  # Machine metadata is retrieved from /etc/lsb-release
-  # and sent to the server. The server responds with a uuid
-  # that the machine should use in future requests.
+  # Register the current machine
   #
   # Returns:
   #   Machine UUID or script error
-
-  os=$(get_lsb_value "DISTRIB_ID")
-  version=$(get_lsb_value "DISTRIB_RELEASE")
   json=$(printf '{
     "name": "%s",
     "os": "%s",
     "version": "%s"
-  }' "$FRIENDLY_NAME" "$os" "$version")
-
-  logv "Machine $FRIENDLY_NAME ($os $version)"
+  }' "$FRIENDLY_NAME" "$OS" "$VERSION")
 
   # We're expecting relatively well-formed JSON to be returned.
   # A JSON "key": "value" is considered a single record and the
@@ -155,8 +145,6 @@ register()
   # awk will fail if make_request doesn't contain a uuid
   uuid=$(make_request "$API_ENDPOINT" "$json" | awk "$awk_script" -)
 
-  logv "Saving uuid $uuid"
-  echo "$uuid" > "$UUID_FILE"
   echo "$uuid"
 }
 
@@ -184,15 +172,9 @@ update()
   pkgs="[ ${pkgs%,} ]"
   logv "Uploading packages:\n$pkgs"
 
-  status=$(make_request "${API_ENDPOINT}/${UUID}" "$pkgs" \
-                        -o /dev/null -w '%{http_code}')
-
-  logv "Received HTTP $status"
-  if [ "$status" -ne 200 ]; then
-    log "Failed to update packages:  Received $status instead of 200"
-  else
-    log "Successfully uploaded package data"
-  fi
+  # --fail handles most server errors and will trigger exit_handler
+  machine=$(make_request "${API_ENDPOINT}/${UUID}" "$pkgs" --fail)
+  log "Successfully uploaded data for machine $machine"
 }
 
 
@@ -217,9 +199,10 @@ run_script()
     exit
   fi
 
-  distro="$(get_lsb_value 'DISTRIB_ID')"
-  if [ "$distro" != 'Ubuntu' ]; then
-    log "Sorry '$distro' isn't supported at this time"
+  OS=$(get_lsb_value "DISTRIB_ID")
+  VERSION=$(get_lsb_value "DISTRIB_RELEASE")
+  if [ "$OS" != 'Ubuntu' ]; then
+    log "Sorry '$OS' isn't supported at this time"
     exit
   fi
 
@@ -235,13 +218,12 @@ run_script()
         mkdir "$CONFIG_DIR"
       fi
 
-      if [ -f "$UUID_FILE" ]; then
-        logv "Machine is already registered"
-        read -r UUID < "$UUID_FILE"
-      else
-        log "Registering new machine"
-        UUID="$(register)"
+      if [ ! -f "$UUID_FILE" ]; then
+        log "Registering new machine - $FRIENDLY_NAME ($OS $VERSION)"
+        echo "$(register)" > "$UUID_FILE"
       fi
+
+      read -r UUID < "$UUID_FILE"
     else
       log "CLEANSWEEP_UUID will be deprecated in version 3.0.0"
       log "Please update your code to use\n\n" \
