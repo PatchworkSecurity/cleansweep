@@ -122,6 +122,7 @@ get_uuid_or_register()
       echo "$(register)" > "$UUID_FILE"
     fi
 
+    log "Using UUID from $UUID_FILE"
     read -r UUID < "$UUID_FILE"
   else
     log "CLEANSWEEP_UUID will be deprecated in version 3.0.0"
