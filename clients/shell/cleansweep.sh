@@ -18,23 +18,19 @@ LSB_RELEASE="/etc/lsb-release"
 
 log()
 {
-  # normal logs go to stdout
   echo "  * $@"
 }
 
 logv()
 {
-  # verbose logs go to stderr
-  if [ "$VERBOSE" -eq 0 ]; then
-    return
+  if [ "$VERBOSE" -eq "1" ]; then
+    log "$@" >&2
   fi
-
-  log "$@" >&2
 }
 
 exit_handler()
 {
-  if [ "$?" != 0 ]; then
+  if [ "$?" -ne "0" ]; then
     log "There was an error running the script"
   fi
 }
