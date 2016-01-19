@@ -16,116 +16,48 @@ UUID_FILE="${CONFIG_DIR}/uuid"
 UUID=${PATCHWORK_UUID:-}
 LSB_RELEASE="/etc/lsb-release"
 
-log()
-{
-  # normal logs go to stdout
-  echo "  * $@"
-}
 
-logv()
+run_script()
 {
-  # verbose logs go to stderr
-  if [ "$VERBOSE" -eq 0 ]; then
-    return
+  # Wrap the script in a function to prevent undefined behavior from
+  # network truncation
+
+  check_requirements
+
+  if [ $# -gt 0 ]; then
+    if [ "$1" = "-v" ]; then
+      VERBOSE=1
+      log "Verbose logging enabled"
+      log_settings
+    fi
   fi
 
-  log "$@" >&2
-}
-
-exit_handler()
-{
-  if [ "$?" != 0 ]; then
-    log "There was an error running the script"
+  if [ -z "$UUID" ]; then
+    get_uuid_or_register
+    logv "UUID: $UUID"
   fi
-}
 
-trap exit_handler EXIT
-
-
-get_lsb_value()
-{
-  # Retrieve a value from lsb-release
-  #
-  # The awk script returns non-zero if the key wasn't found
-  #
-  # Returns:
-  #   Value of supplied key or script error
-
-  key=$1
-  logv "Searching lsb-release for '$key'"
-
-  # lsb-release is '='-delimited
-  awk_script='BEGIN {
-    FS="=";
-  }
-  /=/ {
-    if ($1 == key) {
-      value = $2
-      key_found = 1
-      exit
-    }
-  }
-  END {
-    if (key_found != 1) {
-      exit 1
-    }
-    print value
-  }'
-
-  awk -v key="$key" "$awk_script" "$LSB_RELEASE"
-}
-
-
-make_request()
-{
-  # Perform a curl request against the API server
-  #
-  # Args:
-  #   url: URL to curl against
-  #   data: POST data
-  #   $@: Addtional arguments to pass to curl
-  #
-  # Returns:
-  #   Response body of request
-
-  url=$1
-  logv "Performing request to $url"
-  data=$2
-  shift 2
-
-  curl -s -H "Authorization: $PATCHWORK_API_KEY" \
-       -H "Expect: " \
-       -H "Content-Type: application/json" \
-       -d @- "$@" "$url" <<CURL_DATA
-$data
-CURL_DATA
+  update
 }
 
 register()
 {
-  # Register the current machine
-  #
-  # Returns:
-  #   Machine UUID or script error
+  # Register the current machine and return its UUID or error
   json=$(printf '{
     "name": "%s",
     "os": "%s",
     "version": "%s"
   }' "$FRIENDLY_NAME" "$OS" "$VERSION")
 
-  # We're expecting relatively well-formed JSON to be returned.
-  # A JSON "key": "value" is considered a single record and the
-  # fields are separated by the colon in the record. This approach
-  # isn't robust enough to handle all JSON. A friendly name with
-  # commas and colons may cause issues.
+  # Handle JSON in the form of {"key": "value", "key2": "value2"}
+  # This work for {"name": "friendly,name", "uuid": UUID} by chance
   awk_script='BEGIN {
     RS=",";
     FS=":";
   }
   /:/ {
     if ($1 ~ /"uuid"$/) {
-      # split will return the string before, in and after the
-      # double quotes
+      # split returns the string before, in and after the double quotes
       count = split($2, parts, /"/)
       if (count == 3) {
         uuid = parts[2]
@@ -148,25 +80,21 @@ register()
   echo "$uuid"
 }
 
-
 update()
 {
-  # Updates the package set for the machine
-  #
-  # Package data is retrieved from dpkg-query and uploaded to the
-  # service. This replaces the machine's previous package list
+  # Replaces this machines package set on the server or error
 
   log "Updating machine state"
 
-  # output JSON like string
   awk_script='BEGIN {
     RS="\n";
     FS="\t";
   }
   /^install ok installed/ {
-    # only print if package is installed
+    # output JSON like string if package is installed
     printf "{\"name\": \"%s\", \"version\": \"%s\"},\n", $2, $3;
   }'
+
   pkgs=$(dpkg-query -W -f '${Status}\t${Package}\t${Version}\n' | awk "$awk_script" -)
   # remove trailing comma and turn into array
   pkgs="[ ${pkgs%,} ]"
@@ -178,12 +106,86 @@ update()
 }
 
 
-run_script()
+get_uuid_or_register()
 {
-  # Runs the script
-  # We wrap the script in this function because a network truncation may
-  # result in undefined behavior
+  # try reading from old variable name
+  UUID=${CLEANSWEEP_UUID:-}
 
+  if [ -z "$UUID" ]; then
+    if [ ! -d "$CONFIG_DIR" ]; then
+      logv "Creating config directory"
+      mkdir "$CONFIG_DIR"
+    fi
+
+    if [ ! -f "$UUID_FILE" ]; then
+      log "Registering new machine - $FRIENDLY_NAME ($OS $VERSION)"
+      echo "$(register)" > "$UUID_FILE"
+    fi
+
+    read -r UUID < "$UUID_FILE"
+  else
+    log "CLEANSWEEP_UUID will be deprecated in version 3.0.0"
+    log "Please update your code to use\n\n" \
+        "\tPATCHWORK_UUID\n"
+  fi
+}
+
+get_lsb_value()
+{
+  # Returns corresponding value for a key in lsb-release or error
+
+  key=$1
+  logv "Searching lsb-release for '$key'"
+
+  awk_script='BEGIN {
+    FS="="; # lsb-release is =-delimited
+  }
+  /=/ {
+    if ($1 == key) {
+      value = $2
+      key_found = 1
+      exit
+    }
+  }
+  END {
+    if (key_found != 1) {
+      exit 1
+    }
+    print value
+  }'
+
+  awk -v key="$key" "$awk_script" "$LSB_RELEASE"
+}
+
+make_request()
+{
+  # Perform a curl request against the API server
+  #
+  # Args:
+  #   url: URL to curl against
+  #   data: POST data
+  #   $@: Addtional arguments to pass to curl
+  #
+  # Returns:
+  #   Response body of request
+
+  url=$1
+  logv "Performing request to $url"
+  data=$2
+  shift 2
+
+  # use heredoc otherwise curl argument list may be too long
+  curl -s -H "Authorization: $PATCHWORK_API_KEY" \
+       -H "Expect: " \
+       -H "Content-Type: application/json" \
+       -d @- "$@" "$url" <<CURL_DATA
+$data
+CURL_DATA
+}
+
+check_requirements()
+{
+  # fail if any prerequisites aren't met
   if [ -z "$PATCHWORK_API_KEY" ]; then
     log "You didn't set PATCHWORK_API_KEY"
     log "Set this before running the script with\n\n" \
@@ -205,47 +207,35 @@ run_script()
     log "Sorry '$OS' isn't supported at this time"
     exit
   fi
+}
 
-  if [ -z "$UUID" ]; then
-    # try reading from old variable name
-    UUID=${CLEANSWEEP_UUID:-}
+log()
+{
+  echo "  * $@"
+}
 
-    if [ -z "$UUID" ]; then
-      # Check that $CONFIG_DIR exists, otherwise saving
-      # the uuid may fail
-      if [ ! -d "$CONFIG_DIR" ]; then
-        logv "Creating config directory"
-        mkdir "$CONFIG_DIR"
-      fi
-
-      if [ ! -f "$UUID_FILE" ]; then
-        log "Registering new machine - $FRIENDLY_NAME ($OS $VERSION)"
-        echo "$(register)" > "$UUID_FILE"
-      fi
-
-      read -r UUID < "$UUID_FILE"
-    else
-      log "CLEANSWEEP_UUID will be deprecated in version 3.0.0"
-      log "Please update your code to use\n\n" \
-          "\tPATCHWORK_UUID\n"
-    fi
+logv()
+{
+  if [ "$VERBOSE" -eq "1" ]; then
+    log "$@" >&2
   fi
+}
 
-  if [ $# -gt 0 ]; then
-    if [ "$1" = "-v" ]; then
-      VERBOSE=1
-      log "Verbose logging enabled"
-    fi
-  fi
-
+log_settings()
+{
   logv "PATCHWORK_API_KEY: $PATCHWORK_API_KEY"
   logv "API_ENDPOINT: $API_ENDPOINT"
   logv "FRIENDLY_NAME: $FRIENDLY_NAME"
   logv "CONFIG_DIR: $CONFIG_DIR"
-  logv "UUID: $UUID"
-
-  update
 }
 
+exit_handler()
+{
+  if [ "$?" -ne "0" ]; then
+    log "There was an error running the script"
+  fi
+}
+
+trap exit_handler EXIT
 
 run_script "$@"
