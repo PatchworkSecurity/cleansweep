@@ -4,19 +4,18 @@ set -eu
 IFS=$'\n\t'
 VERBOSE=0
 WEBSITE="https://patchworksecurity.com"
+API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
+LSB_RELEASE="/etc/lsb-release"
+DEBIAN_VERSION="/etc/debian_version"
 
 # PATCHWORK_API_KEY must be supplied as an environment variable
 # FRIENDLY_NAME defaults to hostname which may be sensitive.
 # Set the FRIENDLY_NAME environment variable to override this.
 PATCHWORK_API_KEY=${PATCHWORK_API_KEY:-}
-API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
 FRIENDLY_NAME=${FRIENDLY_NAME:-$(hostname)}
 CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
 UUID_FILE="${CONFIG_DIR}/uuid"
 UUID=${PATCHWORK_UUID:-}
-LSB_RELEASE="/etc/lsb-release"
-DEBIAN_VERSION="/etc/debian_version"
-
 
 run_script()
 {
