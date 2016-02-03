@@ -65,7 +65,7 @@ Enable verbose output to stderr
 
 ### Configuration
 
-The machine uuid is stored in `.patchwork/uuid` by default. You can reset the uuid by deleting that file. This may be required when upgradng the operating system.
+The machine uuid is stored in `.patchwork/uuid` by default. You can reset the uuid by deleting that file. This may be required when upgrading the operating system.
 
 You can specify a UUID by setting `PATCHWORK_UUID`. UUIDs are specific to Linux versions. You will need a new UUID if you upgrade your version of Linux, e.g. Ubuntu 12.04 to Ubuntu 14.04
 
