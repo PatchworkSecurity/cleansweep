@@ -15,6 +15,7 @@ CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
 UUID_FILE="${CONFIG_DIR}/uuid"
 UUID=${PATCHWORK_UUID:-}
 LSB_RELEASE="/etc/lsb-release"
+DEBIAN_VERSION="/etc/debian_version"
 
 
 run_script()
@@ -126,6 +127,15 @@ get_uuid_or_register()
   fi
 }
 
+guess_os()
+{
+  if [ -f "$LSB_RELEASE" ]; then
+    echo "ubuntu"
+  elif [ -f "$DEBIAN_VERSION" ]; then
+    echo "debian"
+  fi
+}
+
 get_lsb_value()
 {
   # Returns corresponding value for a key in lsb-release or error
@@ -187,18 +197,27 @@ check_requirements()
     exit
   fi
 
-  if [ ! -f "$LSB_RELEASE" ]; then
-    log "$LSB_RELEASE doesn't exist"
-    log "Check $WEBSITE for supported operating systems"
-    exit
-  fi
-
-  OS=$(get_lsb_value "DISTRIB_ID")
-  VERSION=$(get_lsb_value "DISTRIB_RELEASE")
-  if [ "$OS" != 'Ubuntu' ]; then
-    log "Sorry '$OS' isn't supported at this time"
-    exit
-  fi
+  case $(guess_os) in
+    "ubuntu" )
+      OS=$(get_lsb_value "DISTRIB_ID")
+      VERSION=$(get_lsb_value "DISTRIB_RELEASE")
+      # lsb-release exists for non-Ubuntu
+      if [ "$OS" != 'Ubuntu' ]; then
+        log "Sorry '$OS' isn't supported at this time"
+        log "Check $WEBSITE for supported operating systems"
+        exit
+      fi
+      ;;
+    "debian" )
+      OS="debian"
+      VERSION=$(awk -F'.' '{print $1}' "$DEBIAN_VERSION")
+      ;;
+    * )
+      log "Unknown operating system"
+      log "Check $WEBSITE for supported operating systems"
+      exit
+      ;;
+  esac
 }
 
 log()
