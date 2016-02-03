@@ -3,12 +3,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.3.0] - 2016-02-02
+### Changed
+- Use source:Version instead of Version. #15
+- Simplify awk scripts
+
+### Fixed
+- Typo in README. #14
+
+### Added
+- Debian support (squeeze, wheezy, jessie). #4
+
 ## [2.2.0] - 2016-01-19
 ### Changed
 - Revert previous change to FRIENDLY_NAME. The default is `hostname` again. #13
 - Place core script functionality toward top of script. #10
+
 ### Fixed
 - dpkg-query no longer includes packages not in the fully installed state. #9
+
 ### Added
 - Provide user with information on machine metadata. #12
 - Display UUID file location.
@@ -16,6 +29,7 @@ All notable changes to this project will be documented in this file.
 ## [2.1.0] - 2016-01-15
 ### Changed
 - Default FRIENDLY_NAME is now the string `testing`
+
 ### Deprecated
 - CLEANSWEEP_UUID is now PATCHWORK_UUID.
 
