@@ -52,25 +52,20 @@ register()
   # Handle JSON in the form of {"key": "value", "key2": "value2"}
   # This work for {"name": "friendly,name", "uuid": UUID} by chance
   awk_script='BEGIN {
-    RS=",";
-    FS=":";
+    RS=","
+    FS=":"
+    status=1
   }
-  /:/ {
-    if ($1 ~ /"uuid"$/) {
-      # split returns the string before, in and after the double quotes
-      count = split($2, parts, /"/)
-      if (count == 3) {
-        uuid = parts[2]
-        uuid_found = 1
-        exit
-      }
+  /:/ && ($1 ~ /"uuid"$/) {
+    # split returns the string before, in and after the double quotes
+    if (3 == split($2, parts, /"/)) {
+      print parts[2]
+      status=0
+      exit
     }
   }
   END {
-    if (uuid_found != 1) {
-      exit 1
-    }
-    print uuid
+    exit status
   }'
 
   # POSIX doesn't support set -o pipefail
@@ -87,12 +82,12 @@ update()
   log "Updating machine state"
 
   awk_script='BEGIN {
-    RS="\n";
-    FS="\t";
+    RS="\n"
+    FS="\t"
   }
   /^install ok installed/ {
     # output JSON like string if package is installed
-    printf "{\"name\": \"%s\", \"version\": \"%s\"},\n", $2, $3;
+    printf "{\"name\": \"%s\", \"version\": \"%s\"},\n", $2, $3
   }'
 
   pkgs=$(dpkg-query -W -f '${Status}\t${Package}\t${Version}\n' | awk "$awk_script" -)
@@ -139,20 +134,16 @@ get_lsb_value()
   logv "Searching lsb-release for '$key'"
 
   awk_script='BEGIN {
-    FS="="; # lsb-release is =-delimited
+    FS="=" # lsb-release is =-delimited
+    status=1
   }
-  /=/ {
-    if ($1 == key) {
-      value = $2
-      key_found = 1
-      exit
-    }
+  /=/ && ($1 == key) {
+    print $2
+    status=0
+    exit
   }
   END {
-    if (key_found != 1) {
-      exit 1
-    }
-    print value
+    exit status
   }'
 
   awk -v key="$key" "$awk_script" "$LSB_RELEASE"
