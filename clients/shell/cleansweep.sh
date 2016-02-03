@@ -87,10 +87,11 @@ update()
   }
   /^install ok installed/ {
     # output JSON like string if package is installed
-    printf "{\"name\": \"%s\", \"version\": \"%s\"},\n", $2, $3
+    # prefer source:Version if it exists, fallback to Version
+    printf "{\"name\": \"%s\", \"version\": \"%s\"},\n", $2, ($3 ? $3 : $4)
   }'
 
-  pkgs=$(dpkg-query -W -f '${Status}\t${Package}\t${Version}\n' | awk "$awk_script" -)
+  pkgs=$(dpkg-query -W -f '${Status}\t${Package}\t${source:Version}\t${Version}\n' | awk "$awk_script" -)
   # remove trailing comma and turn into array
   pkgs="[ ${pkgs%,} ]"
   logv "Uploading packages:\n$pkgs"
