@@ -15,6 +15,7 @@ CONFIG_DIR=${CONFIG_DIR:-".patchwork"}
 UUID_FILE="${CONFIG_DIR}/uuid"
 UUID=${PATCHWORK_UUID:-}
 LSB_RELEASE="/etc/lsb-release"
+DEBIAN_VERSION="/etc/debian_version"
 
 
 run_script()
@@ -52,25 +53,20 @@ register()
   # Handle JSON in the form of {"key": "value", "key2": "value2"}
   # This work for {"name": "friendly,name", "uuid": UUID} by chance
   awk_script='BEGIN {
-    RS=",";
-    FS=":";
+    RS=","
+    FS=":"
+    status=1
   }
-  /:/ {
-    if ($1 ~ /"uuid"$/) {
-      # split returns the string before, in and after the double quotes
-      count = split($2, parts, /"/)
-      if (count == 3) {
-        uuid = parts[2]
-        uuid_found = 1
-        exit
-      }
+  /:/ && ($1 ~ /"uuid"$/) {
+    # split returns the string before, in and after the double quotes
+    if (3 == split($2, parts, /"/)) {
+      print parts[2]
+      status=0
+      exit
     }
   }
   END {
-    if (uuid_found != 1) {
-      exit 1
-    }
-    print uuid
+    exit status
   }'
 
   # POSIX doesn't support set -o pipefail
@@ -87,12 +83,12 @@ update()
   log "Updating machine state"
 
   awk_script='BEGIN {
-    RS="\n";
-    FS="\t";
+    RS="\n"
+    FS="\t"
   }
   /^install ok installed/ {
     # output JSON like string if package is installed
-    printf "{\"name\": \"%s\", \"version\": \"%s\"},\n", $2, $3;
+    printf "{\"name\": \"%s\", \"version\": \"%s\"},\n", $2, $3
   }'
 
   pkgs=$(dpkg-query -W -f '${Status}\t${Package}\t${Version}\n' | awk "$awk_script" -)
@@ -131,6 +127,15 @@ get_uuid_or_register()
   fi
 }
 
+guess_os()
+{
+  if [ -f "$LSB_RELEASE" ]; then
+    echo "ubuntu"
+  elif [ -f "$DEBIAN_VERSION" ]; then
+    echo "debian"
+  fi
+}
+
 get_lsb_value()
 {
   # Returns corresponding value for a key in lsb-release or error
@@ -139,20 +144,16 @@ get_lsb_value()
   logv "Searching lsb-release for '$key'"
 
   awk_script='BEGIN {
-    FS="="; # lsb-release is =-delimited
+    FS="=" # lsb-release is =-delimited
+    status=1
   }
-  /=/ {
-    if ($1 == key) {
-      value = $2
-      key_found = 1
-      exit
-    }
+  /=/ && ($1 == key) {
+    print $2
+    status=0
+    exit
   }
   END {
-    if (key_found != 1) {
-      exit 1
-    }
-    print value
+    exit status
   }'
 
   awk -v key="$key" "$awk_script" "$LSB_RELEASE"
@@ -196,18 +197,27 @@ check_requirements()
     exit
   fi
 
-  if [ ! -f "$LSB_RELEASE" ]; then
-    log "$LSB_RELEASE doesn't exist"
-    log "Check $WEBSITE for supported operating systems"
-    exit
-  fi
-
-  OS=$(get_lsb_value "DISTRIB_ID")
-  VERSION=$(get_lsb_value "DISTRIB_RELEASE")
-  if [ "$OS" != 'Ubuntu' ]; then
-    log "Sorry '$OS' isn't supported at this time"
-    exit
-  fi
+  case $(guess_os) in
+    "ubuntu" )
+      OS=$(get_lsb_value "DISTRIB_ID")
+      VERSION=$(get_lsb_value "DISTRIB_RELEASE")
+      # lsb-release exists for non-Ubuntu
+      if [ "$OS" != 'Ubuntu' ]; then
+        log "Sorry '$OS' isn't supported at this time"
+        log "Check $WEBSITE for supported operating systems"
+        exit
+      fi
+      ;;
+    "debian" )
+      OS="debian"
+      VERSION=$(awk -F'.' '{print $1}' "$DEBIAN_VERSION")
+      ;;
+    * )
+      log "Unknown operating system"
+      log "Check $WEBSITE for supported operating systems"
+      exit
+      ;;
+  esac
 }
 
 log()
