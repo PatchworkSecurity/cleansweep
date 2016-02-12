@@ -8,7 +8,7 @@ Get notifications when packages are outdated. Register your installed packages w
 
 ### Usage
 
-This server requires a Patchwork API key.
+This service requires a Patchwork API key.
 
 _**Note:**_ Replace **your_api_key** with the key you received from sign up
 
