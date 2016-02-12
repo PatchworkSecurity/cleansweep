@@ -18,15 +18,15 @@ DOCKER_IMAGE=
 #################################################
 # Main script execution
 # Globals:
-#   UUID
-#   NAME
 #   API_KEY
 #   CONFIG_FILE
+#   NAME
+#   UUID
 #################################################
 main()
 {
   if [ -z "$UUID" ]; then
-    # true if not explicitly set or can't read from config
+    # this means UUID wasn't set explicitly and wasn't read from config
     register "$NAME"
   fi
 
@@ -44,6 +44,7 @@ main()
 # Globals:
 #   API_ENDPOINT
 #   CONFIG_DIR
+#   CONFIG_FILE
 #   UUID
 # Arguments:
 #   $1: machine name
@@ -92,7 +93,7 @@ RELEASE_DATA
 }
 
 #################################################
-# Update set of packages for Docker image
+# Update set of packages
 # Globals:
 #   API_ENDPOINT
 # Arguments:
@@ -130,7 +131,7 @@ update()
 #   $2: POST data
 #   $@: Addtional curl arguments
 # Returns:
-#   Response body of request
+#   Server response
 #################################################
 make_request()
 {
@@ -183,7 +184,8 @@ parse_lsb_release()
 #################################################
 read_release_data()
 {
-  # read release data from files
+  # /etc/lsb-release doesn't exist on all distros
+  # don't exit on non-zero status for those cases
   set +e
   release_data="$(docker_run 'cat /etc/lsb-release')"
   set -e
@@ -192,6 +194,7 @@ read_release_data()
     os=$(parse_lsb_release "$release_data" DISTRIB_ID)
     version=$(parse_lsb_release "$release_data" DISTRIB_RELEASE)
   else
+    # assume debian if debian_version exists and lsb-release doesn't
     os="debian"
     version=$(docker_run 'cat /etc/debian_version' | awk -F'.' '{print $1}')
   fi
