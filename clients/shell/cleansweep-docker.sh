@@ -4,15 +4,16 @@
 set -eu
 IFS="$(printf '\t\n')"
 VERBOSE=0
-WEBSITE="https://patchworksecurity.com"
-API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
 
-API_KEY=${PATCHWORK_API_KEY:-}
 NAME=${PATCHWORK_NAME:-}
 UUID=${PATCHWORK_UUID:-}
-CONFIG_DIR=${PATCHWORK_DIR:-.patchwork}
-CONFIG_FILE="$CONFIG_DIR/uuid"
 DOCKER_IMAGE=
+
+readonly API_ENDPOINT="https://api.patchworksecurity.com/api/v1/machine"
+readonly API_KEY=${PATCHWORK_API_KEY:-}
+readonly CONFIG_DIR=${PATCHWORK_DIR:-.patchwork}
+readonly CONFIG_FILE="$CONFIG_DIR/uuid"
+readonly WEBSITE="https://patchworksecurity.com"
 
 
 #################################################
@@ -82,7 +83,7 @@ RELEASE_DATA
   }'
 
   log "Registering new machine $name - ($os $version)"
-  UUID=$(make_request "$API_ENDPOINT" "$json" | awk "$awk_script")
+  readonly UUID=$(make_request "$API_ENDPOINT" "$json" | awk "$awk_script")
 
   if [ ! -d "$CONFIG_DIR" ]; then
     mkdir "$CONFIG_DIR"
@@ -258,8 +259,9 @@ shift $((OPTIND-1))
 if [ "$#" -lt 1 ]; then
   usage
 fi
-DOCKER_IMAGE="$1"
-NAME=${NAME:-docker-$DOCKER_IMAGE}
+readonly VERBOSE
+readonly DOCKER_IMAGE="$1"
+readonly NAME=${NAME:-docker-$DOCKER_IMAGE}
 
 if [ -z "$API_KEY" ]; then
   log "PATCHWORK_API_KEY must be set before running script\n\n" \
@@ -271,6 +273,7 @@ fi
 
 if [ -z "$UUID" ] && [ -f "$CONFIG_FILE" ]; then
   read -r UUID < "$CONFIG_FILE"
+  readonly UUID
 fi
 
 # call main script at end to deal with network truncation when
